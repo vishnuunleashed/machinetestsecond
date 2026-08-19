@@ -4,6 +4,7 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/presentation/base_notifier.dart';
 import '../../../../core/usecase/usecase.dart';
 import '../../../tasks/data/datasources/task_local_data_source.dart';
+import '../../../tasks/domain/repositories/task_repository.dart';
 import '../../domain/usecases/email_password_params.dart';
 import '../../domain/usecases/sign_in.dart';
 import '../../domain/usecases/sign_out.dart';
@@ -41,7 +42,14 @@ class AuthFormNotifier extends BaseNotifier<AuthFormState> {
   Future<void> signIn(String email, String password) {
     return guard(
       () => _signIn(EmailPasswordParams(email: email, password: password)),
-      (current, _) => current.copyWith(isLoading: false, clearError: true),
+      (current, _) {
+        // TaskRepository is a lazy singleton that only auto-syncs once, at
+        // whichever user's session first creates it — switching to a
+        // different user afterward needs an explicit fresh pull, or their
+        // tasks never get pulled into the (just-cleared) local cache.
+        sl<TaskRepository>().syncNow();
+        return current.copyWith(isLoading: false, clearError: true);
+      },
     );
   }
 
