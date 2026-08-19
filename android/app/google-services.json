@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "462324806618",
+    "project_id": "machinetestsecond",
+    "storage_bucket": "machinetestsecond.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:462324806618:android:682cbef3a6806566dd86e3",
+        "android_client_info": {
+          "package_name": "com.example.machinetestsecond"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBNsN-kBr43UJlsxyfjjKmQSntaEXemQSU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
