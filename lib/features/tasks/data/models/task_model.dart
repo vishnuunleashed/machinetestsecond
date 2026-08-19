@@ -49,9 +49,13 @@ class TaskModel extends TaskEntity {
       createdAt: entity.createdAt,
       syncStatus: syncStatus,
       userId: userId,
-      // Any create/update means the task's relevant fields may have
-      // changed (including the due date) — willing to notify again.
-      notified: false,
+      // A reminder is for a moment that hasn't arrived yet. If the due date
+      // is already at-or-before "now" the instant this is written — e.g. a
+      // past time-of-day picked on today's date, since the date picker only
+      // blocks past *dates*, not past times on today — it must never fire,
+      // not even once. Only a due date still in the future stays eligible,
+      // to actually be reached later by TaskDueNotificationPoller.
+      notified: !entity.dueDate.isAfter(DateTime.now()),
     );
   }
 
@@ -117,6 +121,7 @@ class TaskModel extends TaskEntity {
   // ---- Firestore (remote) ----
 
   factory TaskModel.fromFirestore(String id, Map<String, dynamic> data) {
+    final dueDate = (data['dueDate'] as Timestamp).toDate();
     return TaskModel(
       id: id,
       title: data['title'] as String,
@@ -124,13 +129,16 @@ class TaskModel extends TaskEntity {
       priority: TaskPriorityX.fromStorageValue(
         data['priority'] as String? ?? TaskPriority.medium.storageValue,
       ),
-      dueDate: (data['dueDate'] as Timestamp).toDate(),
+      dueDate: dueDate,
       isCompleted: data['isCompleted'] as bool? ?? false,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       // Anything pulled fresh from Firestore is, by definition, in sync.
       syncStatus: SyncStatus.synced,
       userId: data['userId'] as String? ?? '',
-      notified: false,
+      // Same rule as TaskModel.fromEntity: don't retroactively notify for
+      // a task synced in from another device whose due time already
+      // passed before this device ever saw it.
+      notified: !dueDate.isAfter(DateTime.now()),
     );
   }
 

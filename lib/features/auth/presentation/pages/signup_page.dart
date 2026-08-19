@@ -15,6 +15,8 @@ class _SignupPageState extends ConsumerState<SignupPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void dispose() {
@@ -88,22 +90,47 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _passwordController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Password',
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                      tooltip:
+                          _obscurePassword ? 'Show password' : 'Hide password',
+                      onPressed: () => setState(
+                        () => _obscurePassword = !_obscurePassword,
+                      ),
+                    ),
                   ),
-                  obscureText: true,
+                  obscureText: _obscurePassword,
                   textInputAction: TextInputAction.next,
                   validator: _validatePassword,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _confirmPasswordController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Confirm password',
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureConfirmPassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                      tooltip: _obscureConfirmPassword
+                          ? 'Show password'
+                          : 'Hide password',
+                      onPressed: () => setState(
+                        () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                      ),
+                    ),
                   ),
-                  obscureText: true,
+                  obscureText: _obscureConfirmPassword,
                   textInputAction: TextInputAction.done,
                   validator: _validateConfirmPassword,
                   onFieldSubmitted: (_) => _submit(),
