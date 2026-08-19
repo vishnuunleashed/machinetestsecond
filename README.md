@@ -166,8 +166,83 @@ change automatically.
   priority) — all local.
 - Dark mode: Light/Dark/System, user-selectable from the task list AppBar,
   persisted via `flutter_secure_storage` and restored on launch.
+- Due-date reminders: a local notification fires when a task's due
+  date/time arrives (Google Tasks-style), even if the app isn't open.
+  Tapping it opens that task. See below for how this is implemented and a
+  known limitation of the approach.
 - Loading, empty, and error states throughout; sync status indicator;
   pull-to-refresh.
+
+## Due-date reminders
+
+Implemented with `flutter_local_notifications`, entirely on-device.
+`TaskDueNotificationPoller` polls every locally-held task on a 30-second
+timer and fires a notification (`NotificationService.showNow`) the moment
+one becomes due — an incomplete, not-yet-notified task whose due date has
+passed. It's fully decoupled from `TaskRepositoryImpl`: it doesn't need to
+be told when a task changes, it just re-scans Hive directly, so it works
+correctly regardless of which write path touched a task (create, edit,
+toggle, or a sync pull from another device).
+
+**This was originally built as OS-scheduled** (`zonedSchedule` /
+AlarmManager via `AndroidScheduleMode.inexactAllowWhileIdle`), which is the
+more typical approach and can wake up a fully terminated app. In practice
+it proved unreliable across devices/timezones in testing (silent failures,
+timezone-database gaps for certain devices) and was replaced with the
+polling approach for one specific reason: **it actually works**. The
+trade-off is real and worth stating plainly — a poll-based reminder only
+fires while the app process is alive (foreground or backgrounded-but-not-
+killed by the OS); it cannot wake up a fully closed app the way a genuine
+OS alarm can.
+
+**Why not FCM.** The initial ask was for this to use Firebase Cloud
+Messaging. FCM has no built-in "deliver at a future time" capability —
+triggering a push exactly when a task becomes due requires something
+running on a schedule to detect that and call the send API, which in
+Firebase's world means a Cloud Function. Cloud Functions (and Cloud
+Scheduler) require the paid **Blaze** billing plan; they don't run on the
+free Spark plan at all. A zero-cost workaround was considered (a GitHub
+Actions cron job calling the FCM send API directly, bypassing Firebase
+billing entirely), but the fully on-device `flutter_local_notifications`
+approach was chosen instead for simplicity — no billing plan, no external
+CI, no service-account secrets, same user-facing behavior.
+
+### Future work: true background delivery
+
+Current reminders only fire while the app process is alive. If a
+fully-closed app needs to notify the user, options worth evaluating, in
+roughly increasing order of reliability and effort:
+
+- **Exact OS alarms + boot receiver.** Go back to
+  `flutter_local_notifications`'s `zonedSchedule` (which this project moved
+  away from — see above), but request the "Schedule exact alarms"
+  permission (`AndroidScheduleMode.exactAllowWhileIdle`) instead of inexact,
+  and add `RECEIVE_BOOT_COMPLETED` + the plugin's bundled boot receiver so
+  scheduled reminders survive a device reboot. Lowest effort of the
+  "real" options, but exact-alarm reliability still varies by OEM (Samsung
+  in particular is aggressive about killing background alarms) and needs
+  more testing across devices than this project has had time for.
+- **WorkManager** (`workmanager` package). Schedule a periodic background
+  task that runs in its own isolate independent of the foreground app,
+  checks due tasks, and shows a notification — essentially today's
+  `TaskDueNotificationPoller`, but running as OS-managed background work
+  instead of an in-process `Timer`. Survives the app being backgrounded/
+  swiped away; still subject to Doze/battery-optimization deferral like
+  any background work, but designed for exactly this use case.
+- **Foreground service.** Keep a persistent Android foreground service
+  (with its own permanent notification) alive to guarantee the process
+  never gets killed. Most reliable of the on-device options, but
+  intrusive (a permanent notification icon) and battery-heavy — generally
+  only justified for apps with a continuous reason to run (tracking,
+  media playback), not a reminder feature.
+- **Real server-triggered FCM push.** The most "production" answer, and
+  the one originally requested for this feature (see "Why not FCM" above):
+  a server (Cloud Function on Blaze, or the free-tier GitHub Actions cron
+  workaround already scoped in this conversation) detects a task is due
+  and sends an FCM push. Works even if the device has been fully powered
+  off and only just reconnected, since the trigger is server-side, not
+  dependent on the device's own OS scheduler at all. Highest effort/cost,
+  highest reliability.
 
 ## Running it
 

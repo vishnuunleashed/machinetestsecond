@@ -277,7 +277,7 @@ class _TaskTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isOverdue = !task.isCompleted && task.dueDate.isBefore(DateTime.now());
-    final dateFormat = DateFormat.yMMMd();
+    final dateFormat = DateFormat.yMMMd().add_jm();
     final errorColor = Theme.of(context).colorScheme.error;
 
     return Dismissible(

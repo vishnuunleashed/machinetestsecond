@@ -52,7 +52,7 @@ class TaskDetailsPage extends ConsumerWidget {
         ref.watch(taskListNotifierProvider.select((s) => s.allTasks));
     final current = _findById(liveTasks, task.id) ?? task;
 
-    final dateFormat = DateFormat.yMMMd();
+    final dateFormat = DateFormat.yMMMd().add_jm();
     final theme = Theme.of(context);
 
     return Scaffold(

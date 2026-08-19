@@ -51,15 +51,36 @@ class _AddEditTaskPageState extends ConsumerState<AddEditTaskPage> {
     // picker's range simply starts at today. An already-overdue task being
     // edited keeps its stored date shown as text unless the user opens the
     // picker and picks a new one, which can only be today or later.
-    final initial =
+    final initialDate =
         (_dueDate != null && !_dueDate!.isBefore(today)) ? _dueDate! : today;
-    final picked = await showDatePicker(
+
+    final pickedDate = await showDatePicker(
       context: context,
-      initialDate: initial,
+      initialDate: initialDate,
       firstDate: today,
       lastDate: DateTime(now.year + 5),
     );
-    if (picked != null) setState(() => _dueDate = picked);
+    if (pickedDate == null || !mounted) return;
+
+    // Time defaults to 9:00 AM for a task that didn't have one yet — the
+    // due-date reminder needs an actual time to fire at, not just a day.
+    final initialTime = _dueDate != null
+        ? TimeOfDay.fromDateTime(_dueDate!)
+        : const TimeOfDay(hour: 9, minute: 0);
+    final pickedTime =
+        await showTimePicker(context: context, initialTime: initialTime);
+    if (!mounted) return;
+
+    final resolvedTime = pickedTime ?? initialTime;
+    setState(() {
+      _dueDate = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        resolvedTime.hour,
+        resolvedTime.minute,
+      );
+    });
   }
 
   void _submit() {
@@ -100,7 +121,7 @@ class _AddEditTaskPageState extends ConsumerState<AddEditTaskPage> {
     });
 
     final state = ref.watch(addEditTaskNotifierProvider);
-    final dateFormat = DateFormat.yMMMd();
+    final dateFormat = DateFormat.yMMMd().add_jm();
 
     return Scaffold(
       appBar: AppBar(title: Text(_isEditing ? 'Edit Task' : 'New Task')),
@@ -144,7 +165,10 @@ class _AddEditTaskPageState extends ConsumerState<AddEditTaskPage> {
                     setState(() => _priority = selection.first),
               ),
               const SizedBox(height: 20),
-              Text('Due date', style: Theme.of(context).textTheme.labelLarge),
+              Text(
+                'Due date & time',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
               const SizedBox(height: 8),
               InkWell(
                 onTap: _pickDueDate,
@@ -155,7 +179,7 @@ class _AddEditTaskPageState extends ConsumerState<AddEditTaskPage> {
                   ),
                   child: Text(
                     _dueDate == null
-                        ? 'Select a date'
+                        ? 'Select a date and time'
                         : dateFormat.format(_dueDate!),
                   ),
                 ),

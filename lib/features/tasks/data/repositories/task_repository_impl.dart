@@ -16,6 +16,10 @@ import '../models/task_model.dart';
 /// best-effort push to Firestore follows in the background; if it fails the
 /// task stays flagged pending and [syncNow] retries it later. [syncNow] also
 /// runs automatically whenever connectivity comes back online.
+///
+/// Due-date reminders are handled entirely separately, by
+/// `TaskDueNotificationPoller` polling Hive directly — this class doesn't
+/// need to know reminders exist.
 class TaskRepositoryImpl implements TaskRepository {
   final TaskLocalDataSource local;
   final TaskRemoteDataSource remote;

@@ -14,6 +14,13 @@ class TaskModel extends TaskEntity {
   /// and used to scope every Firestore read/write to that user.
   final String userId;
 
+  /// Local-only, device-only flag: has the due-date reminder already been
+  /// shown for this task? Set by [TaskDueNotificationPoller] once it fires
+  /// one, so the periodic poll doesn't re-notify every cycle. Never synced
+  /// to Firestore — a task pulled from another device always starts
+  /// un-notified on this one.
+  final bool notified;
+
   const TaskModel({
     required super.id,
     required super.title,
@@ -24,6 +31,7 @@ class TaskModel extends TaskEntity {
     required super.createdAt,
     required this.syncStatus,
     required this.userId,
+    this.notified = false,
   });
 
   factory TaskModel.fromEntity(
@@ -41,11 +49,37 @@ class TaskModel extends TaskEntity {
       createdAt: entity.createdAt,
       syncStatus: syncStatus,
       userId: userId,
+      // Any create/update means the task's relevant fields may have
+      // changed (including the due date) — willing to notify again.
+      notified: false,
     );
   }
 
-  TaskModel copyWithSyncStatus(SyncStatus status) =>
-      TaskModel.fromEntity(this, syncStatus: status, userId: userId);
+  TaskModel copyWithSyncStatus(SyncStatus status) => TaskModel(
+        id: id,
+        title: title,
+        description: description,
+        priority: priority,
+        dueDate: dueDate,
+        isCompleted: isCompleted,
+        createdAt: createdAt,
+        syncStatus: status,
+        userId: userId,
+        notified: notified,
+      );
+
+  TaskModel copyWithNotified(bool value) => TaskModel(
+        id: id,
+        title: title,
+        description: description,
+        priority: priority,
+        dueDate: dueDate,
+        isCompleted: isCompleted,
+        createdAt: createdAt,
+        syncStatus: syncStatus,
+        userId: userId,
+        notified: value,
+      );
 
   // ---- Hive (local) ----
 
@@ -63,6 +97,7 @@ class TaskModel extends TaskEntity {
         orElse: () => SyncStatus.synced,
       ),
       userId: map['userId'] as String? ?? '',
+      notified: map['notified'] as bool? ?? false,
     );
   }
 
@@ -76,6 +111,7 @@ class TaskModel extends TaskEntity {
         'createdAt': createdAt.toIso8601String(),
         'syncStatus': syncStatus.name,
         'userId': userId,
+        'notified': notified,
       };
 
   // ---- Firestore (remote) ----
@@ -94,6 +130,7 @@ class TaskModel extends TaskEntity {
       // Anything pulled fresh from Firestore is, by definition, in sync.
       syncStatus: SyncStatus.synced,
       userId: data['userId'] as String? ?? '',
+      notified: false,
     );
   }
 

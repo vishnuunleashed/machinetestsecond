@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 
 import '../network/network_info.dart';
+import '../notifications/notification_service.dart';
 import '../storage/hive_service.dart';
 import '../storage/secure_storage_service.dart';
 
@@ -19,6 +20,7 @@ import '../../features/auth/domain/usecases/watch_auth_state.dart';
 import '../../features/tasks/data/datasources/task_local_data_source.dart';
 import '../../features/tasks/data/datasources/task_remote_data_source.dart';
 import '../../features/tasks/data/repositories/task_repository_impl.dart';
+import '../../features/tasks/data/services/task_due_notification_poller.dart';
 import '../../features/tasks/domain/repositories/task_repository.dart';
 import '../../features/tasks/domain/usecases/create_task.dart';
 import '../../features/tasks/domain/usecases/delete_task.dart';
@@ -49,6 +51,9 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<FirebaseAuth>(() => FirebaseAuth.instance);
   sl.registerLazySingleton<Connectivity>(() => Connectivity());
   sl.registerLazySingleton<NetworkInfo>(() => NetworkInfoImpl(sl()));
+  sl.registerLazySingleton<NotificationService>(
+    () => LocalNotificationServiceImpl(),
+  );
 
   // ---- Auth ----
   sl.registerLazySingleton<AuthRemoteDataSource>(
@@ -69,6 +74,9 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<TaskRemoteDataSource>(
     () => TaskRemoteDataSourceImpl(firestore: sl(), firebaseAuth: sl()),
   );
+  sl.registerLazySingleton<TaskDueNotificationPoller>(
+    () => TaskDueNotificationPoller(local: sl(), notificationService: sl()),
+  );
   sl.registerLazySingleton<TaskRepository>(() {
     final repository = TaskRepositoryImpl(
       local: sl(),
@@ -76,9 +84,10 @@ Future<void> initDependencies() async {
       networkInfo: sl(),
       firebaseAuth: sl(),
     );
-    // Kicks off the connectivity-triggered auto-sync + an initial
-    // catch-up sync (fire-and-forget).
+    // Kicks off the connectivity-triggered auto-sync + an initial catch-up
+    // sync (fire-and-forget), and starts the due-date reminder poller.
     repository.startAutoSync();
+    sl<TaskDueNotificationPoller>().start();
     return repository;
   });
 
